@@ -9,7 +9,9 @@ pip install -e .
 # Import the environment
 
 import gym
-import gym_foo
+
+import gym_Motorway
+
 env = gym.make('Motorway-v0')
 
 # Screenshot
