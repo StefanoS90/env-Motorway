@@ -2,7 +2,7 @@
 Simple Motorway simulated as an OpenAI gym environment 
 
 # Installation
-To install the environment, just go to the gym-foo folder and run the command:
+To install the environment, just go to the gym-Motorway folder and run the command:
 
 pip install -e .
 
