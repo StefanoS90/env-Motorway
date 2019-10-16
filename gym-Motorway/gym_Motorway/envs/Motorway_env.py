@@ -6,8 +6,7 @@ from gym.envs.classic_control import rendering
 
 import math
 import numpy as np
-
-
+import baseconvert
 
 import pyglet
 from pyglet import gl
@@ -111,9 +110,19 @@ class MotorwayEnv(gym.Env, EzPickle):
         self.reward = 0.0
         self.prev_reward = 0.0
         self.verbose = verbose
-        self.action_space = spaces.Box( np.array([-1,-1]), np.array([+1,+1]), dtype=np.float32)  # steer, accelerator
-        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+
         self.traffic_participants = []
+        
+        self.action = []
+        
+        self.possible_long_commands = {0:'COASTING',1:'ACCELERATE',2:'BREAKING'}
+        self.possible_lat_commands  = {0:'KEEP_LANE',1:'LANE_CHANGE_LEFT',2:'LANE_CHANGE_RIGTH'}
+        self.command2acc_mapping   = {'COASTING':0,'ACCELERATE':1,'BREAKING':-2}
+        self.command2steer_mapping = {'KEEP_LANE':0,'LANE_CHANGE_LEFT':-1,'LANE_CHANGE_RIGTH':1}
+        self.action_space          = spaces.Discrete(len(self.possible_lat_commands)*len(self.possible_long_commands)) 
+        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+
+        #self.action_space      = spaces.Tuple((spaces.Discrete(3), spaces.Discrete(3)))  # steer, accelerator
         
     def reset(self):
         self.reward = 0.0
@@ -125,15 +134,30 @@ class MotorwayEnv(gym.Env, EzPickle):
 
         return self.step(None)[0]
 
-    def step(self, action):      
+    def step(self, action):    
+        
+        
         
         dt = 1/FPS
         step_reward = 0
         done = False
         
         if action is not None:
-            self.car.step(dt,action,coasting = False)
-#            a[0] = 0 # reset the globas steering 
+            
+            # map action value to car command
+            command = self.action2command(action)
+            
+            print("action = ",action)
+            print("command = ",command)
+
+            
+            lat_command  = self.possible_lat_commands[command[0]]
+            long_command = self.possible_long_commands[command[1]]
+            print("lat command = ",lat_command)
+            print("long command = ", long_command)
+            car_commands = [self.command2steer_mapping[lat_command],self.command2acc_mapping[long_command]]
+            
+            self.car.step(dt,car_commands,coasting = False)
         
         # update traffic
         if self.t>1:
@@ -160,7 +184,15 @@ class MotorwayEnv(gym.Env, EzPickle):
                 
         return self.state, step_reward, done, {}
     
-    
+    def action2command(self,action):
+        command = np.asarray(baseconvert.base(action,10,3))
+        if len(command) == 1:
+            command = np.append(0,command)
+        return command
+        
+    def command2action(self,command):  
+        return np.asarray(baseconvert.base(command,3,10))
+            
     def check_collision(self,car1,car2):
         return (car1.lane_idx == car2.lane_idx and abs(car1.s-car2.s) < CAR_LENGTH )
             
@@ -365,11 +397,11 @@ if __name__=="__main__":
     def key_press(k, mod):
         global restart
         if k==0xff0d: restart = True
-        if k==key.LEFT:  a[0] = -1.0
-        if k==key.RIGHT: a[0] = 1.0
+        if k==key.LEFT:  a[0] = 1
+        if k==key.RIGHT: a[0] = 2
         
-        if k==key.UP:    a[1] = +1.0
-        if k==key.DOWN:  a[1] = -2.0   
+        if k==key.UP:    a[1] = 1
+        if k==key.DOWN:  a[1] = 2   
         
     def key_release(k, mod):
         if k==key.UP:    a[1] = 0
@@ -394,7 +426,9 @@ if __name__=="__main__":
             a_prev = a
             if a[0] != 0:
                 reset_steering = True
-            s, r, done, info = env.step(a)
+            print("command = ", a)   
+            print("action = ", env.command2action(a))    
+            s, r, done, info = env.step(env.command2action(a))
             if reset_steering: # reset steering to avoid multiple lane change for long button press
                 a[0] = 0
                 reset_steering = False
