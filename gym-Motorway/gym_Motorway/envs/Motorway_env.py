@@ -42,6 +42,9 @@ CAR_LENGTH  = 5;
 DRAG_ACC    = 0.2;
 GRASS_VISC_FRICTION = 0.07;
 
+MAX_SPEED_TRAFFIC  = 230 
+MIN_SPEED_TRAFFIC  = 90
+
 MAX_SPEED  = 230 
 MIN_SPEED  = 60
 
@@ -49,25 +52,44 @@ MIN_SPEED  = 60
 TRAFFIC_PARTICIPANTS_DENSITY = 35 # num participants / km
 SAFE_DIST = 10
 
-class Car:
+class Car:    
+    id = 0
     def __init__(self,start_s,start_lane_idx, start_v = 0,color = (1,0,0)):
         self.s          =  start_s
         self.lane_idx   =  start_lane_idx
         self.v          =  start_v
         self.color      =  color
         self.rnd_acc    =  0
+        self.car_id     =  Car.id
+        print("spawinig car with id = ", self.car_id )
+        Car.id = Car.id+1
+        print("ID count = ", Car.id )
         
     def step(self,dt,action = [0,0], coasting = False, traffic = []):  
         if coasting:
+            # add some random acceleration
+            sample = np.random.uniform(0,1,1)
+            v_span = (self.v - MIN_SPEED_TRAFFIC)/(MIN_SPEED_TRAFFIC-MAX_SPEED_TRAFFIC)
+            acc_probability   = 1-0.05*(1-v_span)
+            break_probability = 0.05*v_span
             
-            if np.random.uniform(1,10) >7:
-                # add some random acceleration
-                self.rnd_acc = np.random.uniform(-15,15,1)
+            if sample > acc_probability:
+                self.rnd_acc = np.random.uniform(-10,-3,1)
+            elif sample < break_probability:
+                self.rnd_acc = np.random.uniform(3,10,1)  
+#            elif sample > :
+#                self.rnd_acc = 0
+            else:    
+                pass
                 
-            self.v = min(max(self.v + self.rnd_acc*dt,MIN_SPEED/3.6),MAX_SPEED/3.6)
+            if (self.car_id == 2 or self.car_id == 1):
+                print("rnd_acc car id,", self.car_id, " = ",self.rnd_acc)
+            
+#            
+            self.v = min(max(self.v + self.rnd_acc*dt,MIN_SPEED_TRAFFIC/3.6),MAX_SPEED_TRAFFIC/3.6)
             
             for tp in traffic:
-                if (tp.s - self.s) < SAFE_DIST and (tp.s - self.s) > 0:
+                if (tp.s - self.s) < SAFE_DIST and (tp.s - self.s) > 0 and (tp.lane_idx == self.lane_idx):
                     self.v = min(tp.v,self.v) # ACC
                     break
             self.s    = self.s + dt*self.v 
@@ -93,6 +115,8 @@ class Car:
         viewer.add_geom(self.car_render)
         self.car_transf.set_translation(pos[0], pos[1])
         
+
+        
         
 
 class MotorwayEnv(gym.Env, EzPickle):
@@ -111,20 +135,18 @@ class MotorwayEnv(gym.Env, EzPickle):
         self.prev_reward = 0.0
         self.verbose = verbose
 
-        self.traffic_participants = []
-        
+        self.traffic_participants = []        
         self.action = []
         
         self.possible_long_commands = {0:'COASTING',1:'ACCELERATE',2:'BREAKING'}
         self.possible_lat_commands  = {0:'KEEP_LANE',1:'LANE_CHANGE_LEFT',2:'LANE_CHANGE_RIGTH'}
-        self.command2acc_mapping   = {'COASTING':0,'ACCELERATE':1,'BREAKING':-2}
-        self.command2steer_mapping = {'KEEP_LANE':0,'LANE_CHANGE_LEFT':-1,'LANE_CHANGE_RIGTH':1}
-        self.action_space          = spaces.Discrete(len(self.possible_lat_commands)*len(self.possible_long_commands)) 
-        self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-
-        #self.action_space      = spaces.Tuple((spaces.Discrete(3), spaces.Discrete(3)))  # steer, accelerator
+        self.command2acc_mapping    = {'COASTING':0,'ACCELERATE':1,'BREAKING':-2}
+        self.command2steer_mapping  = {'KEEP_LANE':0,'LANE_CHANGE_LEFT':-1,'LANE_CHANGE_RIGTH':1}
+        self.action_space           = spaces.Discrete(len(self.possible_lat_commands)*len(self.possible_long_commands)) 
+        self.observation_space      = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
         
     def reset(self):
+        Car.id = 0 # reset traffic id count
         self.reward = 0.0
         self.prev_reward = 0.0
         self.t = 0.0
@@ -144,17 +166,10 @@ class MotorwayEnv(gym.Env, EzPickle):
         
         if action is not None:
             
-            # map action value to car command
-            command = self.action2command(action)
-            
-            print("action = ",action)
-            print("command = ",command)
-
-            
+            # map action number to car command (acceleration/deceleration and steering)
+            command = self.action2command(action)       
             lat_command  = self.possible_lat_commands[command[0]]
             long_command = self.possible_long_commands[command[1]]
-            print("lat command = ",lat_command)
-            print("long command = ", long_command)
             car_commands = [self.command2steer_mapping[lat_command],self.command2acc_mapping[long_command]]
             
             self.car.step(dt,car_commands,coasting = False)
@@ -426,8 +441,6 @@ if __name__=="__main__":
             a_prev = a
             if a[0] != 0:
                 reset_steering = True
-            print("command = ", a)   
-            print("action = ", env.command2action(a))    
             s, r, done, info = env.step(env.command2action(a))
             if reset_steering: # reset steering to avoid multiple lane change for long button press
                 a[0] = 0
@@ -442,6 +455,5 @@ if __name__=="__main__":
             steps += 1
             isopen = env.render()
             if done or restart or isopen == False:
-                time.sleep(2)
                 break
     env.close()
