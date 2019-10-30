@@ -61,9 +61,7 @@ class Car:
         self.color      =  color
         self.rnd_acc    =  0
         self.car_id     =  Car.id
-        print("spawinig car with id = ", self.car_id )
         Car.id = Car.id+1
-        print("ID count = ", Car.id )
         
     def step(self,dt,action = [0,0], coasting = False, traffic = []):  
         if coasting:
@@ -81,10 +79,7 @@ class Car:
 #                self.rnd_acc = 0
             else:    
                 pass
-                
-            if (self.car_id == 2 or self.car_id == 1):
-                print("rnd_acc car id,", self.car_id, " = ",self.rnd_acc)
-            
+                           
 #            
             self.v = min(max(self.v + self.rnd_acc*dt,MIN_SPEED_TRAFFIC/3.6),MAX_SPEED_TRAFFIC/3.6)
             
@@ -262,7 +257,10 @@ class MotorwayEnv(gym.Env, EzPickle):
         if "t" not in self.__dict__: return  # reset() not called yet
 
         # Prepare the roto translation to make the view point at the car s
-        zoom = 0.1*max(1-self.t, 0) + ZOOM*min(self.t, 1)   # Animate zoom first second
+        if mode == 'human':
+            zoom = 0.1*max(1-self.t, 0) + ZOOM*min(self.t, 1)   # Animate zoom first second
+        else:
+            zoom = ZOOM
         car_x , car_y = self.curv2xy(self.car.s,self.car.lane_idx)
         angle = 0
         self.transform.set_scale(zoom, zoom)
