@@ -56,6 +56,7 @@ class Car:
     id = 0
     def __init__(self,start_s,start_lane_idx, start_v = 0,color = (1,0,0)):
         self.s          =  start_s
+        self.s_old      =  start_s
         self.lane_idx   =  start_lane_idx
         self.v          =  start_v
         self.color      =  color
@@ -153,12 +154,12 @@ class MotorwayEnv(gym.Env, EzPickle):
 
     def step(self, action):    
         
-        
-        
+
+            
         dt = 1/FPS
         step_reward = 0
         done = False
-        
+
         if action is not None:
             
             # map action number to car command (acceleration/deceleration and steering)
@@ -184,6 +185,9 @@ class MotorwayEnv(gym.Env, EzPickle):
 
         if action is not None: # First step without action, called from reset()
             self.reward +=-1 
+            if (self.car.s - self.car.s_old>1):
+                self.car.s_old = self.car.s
+                self.reward +=100
             if self.car.lane_idx < 0 or self.car.lane_idx >= LANE_NUMBER:
                 self.reward -= 100
             step_reward = self.reward - self.prev_reward
@@ -192,6 +196,9 @@ class MotorwayEnv(gym.Env, EzPickle):
                 print("FINISHED TRACK!!!!")
                 done = True
                 
+        if self.t > 60:
+            done = True
+            
         return self.state, step_reward, done, {}
     
     def action2command(self,action):
