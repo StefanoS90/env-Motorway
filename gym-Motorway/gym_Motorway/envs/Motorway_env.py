@@ -185,6 +185,8 @@ class MotorwayEnv(gym.Env, EzPickle):
 
         if action is not None: # First step without action, called from reset()
             self.reward +=-1 
+            if lat_command != 'KEEP_LANE':
+                self.reward -=100
             if (self.car.s - self.car.s_old>1):
                 self.car.s_old = self.car.s
                 self.reward +=100
