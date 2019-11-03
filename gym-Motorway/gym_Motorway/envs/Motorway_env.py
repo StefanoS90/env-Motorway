@@ -200,7 +200,6 @@ class MotorwayEnv(gym.Env, EzPickle):
                 
         if self.t > 60:
             done = True
-            
         return self.state, step_reward, done, {}
     
     def action2command(self,action):
@@ -232,7 +231,9 @@ class MotorwayEnv(gym.Env, EzPickle):
             lane  = round(np.random.uniform(0,LANE_NUMBER-1))
             s     = np.random.uniform(15,TRACK_LENGTH/2)
             color = np.random.uniform(0,1,3)
-            color[0] = 1
+            color[0] = 0
+            color[1] = 0
+            color[2] = 1
             curr_tp = Car(s,lane,v,color)
             
             skip_tp = False  
@@ -246,8 +247,6 @@ class MotorwayEnv(gym.Env, EzPickle):
             else:
                 self.traffic_participants.append(curr_tp)
                 tp_indx = tp_indx+1
-                
-                
                 
 
     def render(self, mode='human'):
