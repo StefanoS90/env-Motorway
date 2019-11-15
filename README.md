@@ -14,7 +14,9 @@ import gym_Motorway
 
 env = gym.make('Motorway-v0')
 
-# Screenshot
+# Epsiod 0
 ![DQN Episod 0](Motorway_DQN/Doc/episod_0_gif.gif)
+
+# Epsiod 900
 ![DQN Episod 0](Motorway_DQN/Doc/episod_900_gif.gif)
 
